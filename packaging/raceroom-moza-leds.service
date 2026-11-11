@@ -1,0 +1,26 @@
+[Unit]
+Description=Feed RPM LEDs on the Moza wheel from RaceRoom ($R3E) telemetry
+Documentation=file://%h/.local/share/raceroom-moza-leds/README.md
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/raceroom-moza-leds-daemon
+Environment=PYTHONUNBUFFERED=1
+Restart=always
+RestartSec=5
+# The daemon opens the wheelbase lazily and retries every 3 s (Wheel.RETRY),
+# and it rescans for the game every 10 s (RESCAN_EVERY), so neither the game nor
+# the wheelbase has to be present at start. It is safe to leave running: in the
+# menus it simply keeps the bar dark.
+
+# Deliberately sparse hardening. The service already runs as the user; the
+# options below cost nothing and close real failure paths:
+NoNewPrivileges=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+# Not set: ProtectHome= (configuration lives in ~/.config), ProtectProc= and
+# PrivateUsers= (telemetry is read from /proc/<pid>/fd of the Proton processes).
+
+[Install]
+WantedBy=default.target

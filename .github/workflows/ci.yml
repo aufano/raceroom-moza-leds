@@ -1,0 +1,38 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Byte-compile every module
+        run: python3 -m py_compile *.py tools/*.py
+
+      # The daemon is standard-library only and its serial layer is opened
+      # lazily, so it starts on a machine with no wheel and no game: --dry-run
+      # keeps the port alone and never opens it. Exit 124 is `timeout` telling us
+      # the daemon was still running, which is exactly what it should be doing.
+      - name: Smoke test (no telemetry, no serial port)
+        run: |
+          set +e
+          timeout 5 python3 raceroom_moza_leds.py --dry-run --verbose
+          code=$?
+          set -e
+          [ "$code" -eq 124 ]
+
+      - name: The discovery tool reports no game instead of crashing
+        run: |
+          set +e
+          python3 tools/find_r3e.py
+          code=$?
+          set -e
+          [ "$code" -eq 1 ]

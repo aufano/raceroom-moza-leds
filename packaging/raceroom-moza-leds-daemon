@@ -1,0 +1,30 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+# raceroom-moza-leds -- daemon entry point.
+#
+# exec, not a plain call: systemd stops the service with SIGTERM, and the daemon
+# turns that into a clean shutdown that darkens the bar and hands the LEDs back
+# to the wheelbase. Without exec the shell dies on the SIGTERM, the Python child
+# is orphaned and never runs its cleanup, and the bar stays frozen until
+# TimeoutStopSec expires into a SIGKILL.
+#
+# /usr/bin/python3 explicitly: the daemon is standard-library only, and a
+# packaged file must not resolve its interpreter through the caller's PATH.
+#
+# The data directory is derived from where this script actually lives, so the
+# same file works installed in ~/.local/bin (user install) and in /usr/bin
+# (package).
+set -eu
+
+name=raceroom-moza-leds
+self=$(readlink -f "$0")
+prefix=$(dirname "$(dirname "$self")")
+share=$prefix/share/$name
+
+if [ ! -f "$share/raceroom_moza_leds.py" ]; then
+    # Not installed: running straight out of a checkout (packaging/), so use
+    # the tree itself.
+    share=$prefix
+fi
+
+exec /usr/bin/python3 "$share/raceroom_moza_leds.py" "$@"
