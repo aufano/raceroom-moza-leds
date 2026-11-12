@@ -59,6 +59,16 @@ RESCAN_EVERY = 10.0
 # handed back (mode 0, bar dark, port closed) and reclaimed on the next start.
 IDLE_RELEASE = 60.0
 
+# How often the current mask is resent even though it has not changed.
+#
+# The rim's firmware plays its own idle effect when it stops receiving frames --
+# moza-rev documents the timeout as about two seconds, and Moza's own SimHub
+# plugin carries a dedicated LED keepalive for the same reason. Sending only on
+# change is not enough: on a long straight in a tall gear the adaptive curve
+# keeps the bar full and steady, so nothing was sent for tens of seconds and the
+# rim took the LEDs back (blue idle animation) in the middle of a lap.
+HEARTBEAT = 0.5
+
 
 class Wheel:
     """The serial link, held loosely.
@@ -278,6 +288,7 @@ def main():
 
     shared = None
     last_mask = None
+    last_sent = 0.0
     blink_phase = False
     blinking = False
     blink_at = 0.0
@@ -439,8 +450,15 @@ def main():
                           f"mode={sample.game_mode:2d} leds={mask:010b}",
                           end="", flush=True)
 
-            if mask != last_mask:
-                last_mask = send(mask)
+            # The frame is repeated on a timer as well as on a change: a mask
+            # that holds still -- full bar on a straight -- would otherwise
+            # leave the rim without data long enough to fall back to its own
+            # idle animation. See HEARTBEAT.
+            if mask != last_mask or now - last_sent > HEARTBEAT:
+                sent = send(mask)
+                last_mask = sent
+                if sent is not None:
+                    last_sent = now
             time.sleep(interval)
     except (KeyboardInterrupt, SystemExit):
         print(_("\nStopping ..."))

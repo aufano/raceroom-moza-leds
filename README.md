@@ -85,6 +85,22 @@ learned "top of the band" ended up *above* the shift point: the bar went dark
 until 90 % of the limiter and never filled or blinked. A learned peak above the
 base is therefore clamped back to the base; only lower peaks scale the bar.
 
+### The rim sleeps if you only send on change
+
+The obvious optimisation — write to the port only when the mask changes — is
+wrong. The rim's firmware plays its own idle animation when it stops receiving
+frames; [moza-rev](https://github.com/francisdb/moza-rev) puts the timeout at
+about two seconds, and Moza's own SimHub plugin carries a dedicated LED keepalive
+for the same reason.
+
+It showed up exactly where the mask holds still: a long straight in a tall gear,
+where the adaptive curve keeps the bar full and steady. With `blink` above
+anything the scaled curve can reach there was no flashing either, so the daemon
+sent nothing at all for tens of seconds and the rim took the LEDs back mid-lap —
+the blue idle animation, with no error in the journal and no reconnect. The
+current mask is therefore resent every 0.5 s (`HEARTBEAT`), which is about 27
+bytes at 115200 baud and far inside the firmware's window.
+
 ### Do not put the exe name in your own command line
 
 The racing-session scripts (`racing-xfce-watch`, `racing-xfce-return`) decide
